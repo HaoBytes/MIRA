@@ -1,0 +1,130 @@
+description: moirai_eval_dev
+
+target:
+  name: msrresrchvc
+  service: singularity
+  workspace_name: ml_ts_ws_240915
+
+environment:
+  image: amlt-sing/acpt-torch2.3.1-py3.10-cuda12.1-ubuntu22.04
+
+storage:
+  data:
+    storage_account_name: mltsstorage240915
+    container_name: v-haoli
+    mount_dir: /mnt/storage
+
+code:
+  local_dir: C:\Users\v-haoli4\amlt\moirai  
+
+jobs:
+
+  - name: mib-times-fm-200m
+    sku: NC_A100_v4:80G1
+    priority: high
+    preemptible: false
+    identity: managed
+    command:
+      - conda create -n timesfm_env python=3.10 -y
+      - source activate timesfm_env
+      - pip install timesfm[torch]
+      - pip install transformers torch gluonts uni2ts
+      - pip install chronos-forecasting 
+      -  python run_zero_shot.py --data_dir /mnt/storage/mitbih_csv_split --model google/timesfm-1.0-200m-pytorch --context_lengths 512,1024,2048,3072 --prediction_lengths 96,192,336,720  
+    submit_args:
+      env:
+        {
+          AMLT_BLOB_ROOT_DIR: "/mnt/storage/",
+          AZURE_BLOB_ROOT: "/mnt/storage/",
+          WANDB_API_KEY: "dbed33c088333b75f780fbcb8dd936819a253011",
+          HUGGINGFACE_HUB_TOKEN: "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",
+          _AZUREML_SINGULARITY_JOB_UAI: "/subscriptions/e033d461-1923-44a7-872b-78f1d35a86dd/resourcegroups/ml-ts/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ml_ts_uai_240915"
+        }
+
+  - name: mib-times-fm-500m
+    sku: NC_A100_v4:80G1
+    priority: high
+    preemptible: false
+    identity: managed
+    command:
+      - conda create -n timesfm_env python=3.10 -y
+      - source activate timesfm_env
+      - pip install timesfm[torch]
+      - pip install transformers torch gluonts uni2ts
+      - pip install chronos-forecasting 
+      -  python run_zero_shot.py --data_dir /mnt/storage/mitbih_csv_split --model google/timesfm-1.0-200m-pytorch --context_lengths 512,1024,2048,3072 --prediction_lengths 96,192,336,720  
+    submit_args:
+      env:
+        {
+          AMLT_BLOB_ROOT_DIR: "/mnt/storage/",
+          AZURE_BLOB_ROOT: "/mnt/storage/",
+          WANDB_API_KEY: "dbed33c088333b75f780fbcb8dd936819a253011",
+          HUGGINGFACE_HUB_TOKEN: "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",
+          _AZUREML_SINGULARITY_JOB_UAI: "/subscriptions/e033d461-1923-44a7-872b-78f1d35a86dd/resourcegroups/ml-ts/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ml_ts_uai_240915"
+        }
+
+  - name: mib-chronos-small
+    sku: NC_A100_v4:80G1
+    priority: high
+    preemptible: false
+    identity: managed
+    command:
+      - conda create -n timesfm_env python=3.10 -y
+      - source activate timesfm_env
+      - pip install timesfm[torch]
+      - pip install transformers torch gluonts uni2ts
+      - pip install chronos-forecasting 
+      -  python run_zero_shot.py --data_dir /mnt/storage/mitbih_csv_split --model amazon/chronos-t5-small --context_lengths 512,1024,2048,3072 --prediction_lengths 96,192,336,720  
+    submit_args:
+      env:
+        {
+          AMLT_BLOB_ROOT_DIR: "/mnt/storage/",
+          AZURE_BLOB_ROOT: "/mnt/storage/",
+          WANDB_API_KEY: "dbed33c088333b75f780fbcb8dd936819a253011",
+          HUGGINGFACE_HUB_TOKEN: "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",
+          _AZUREML_SINGULARITY_JOB_UAI: "/subscriptions/e033d461-1923-44a7-872b-78f1d35a86dd/resourcegroups/ml-ts/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ml_ts_uai_240915"
+        }
+
+  - name: mib-chronos-base
+    sku: NC_A100_v4:80G1
+    priority: high
+    preemptible: false
+    identity: managed
+    command:
+      - conda create -n timesfm_env python=3.10 -y
+      - source activate timesfm_env
+      - pip install timesfm[torch]
+      - pip install transformers torch gluonts uni2ts
+      - pip install chronos-forecasting 
+      -  python run_zero_shot.py --data_dir /mnt/storage/mitbih_csv_split --model amazon/chronos-t5-base --context_lengths 512,1024,2048,3072 --prediction_lengths 96,192,336,720  
+    submit_args:
+      env:
+        {
+          AMLT_BLOB_ROOT_DIR: "/mnt/storage/",
+          AZURE_BLOB_ROOT: "/mnt/storage/",
+          WANDB_API_KEY: "dbed33c088333b75f780fbcb8dd936819a253011",
+          HUGGINGFACE_HUB_TOKEN: "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",
+          _AZUREML_SINGULARITY_JOB_UAI: "/subscriptions/e033d461-1923-44a7-872b-78f1d35a86dd/resourcegroups/ml-ts/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ml_ts_uai_240915"
+        }
+
+  - name: mib-chronos-large
+    sku: NC_A100_v4:80G1
+    priority: high
+    preemptible: false
+    identity: managed
+    command:
+      - conda create -n timesfm_env python=3.10 -y
+      - source activate timesfm_env
+      - pip install timesfm[torch]
+      - pip install transformers torch gluonts uni2ts
+      - pip install chronos-forecasting 
+      -  python run_zero_shot.py --data_dir /mnt/storage/mitbih_csv_split --model amazon/chronos-t5-large --context_lengths 512,1024,2048,3072 --prediction_lengths 96,192,336,720  
+    submit_args:
+      env:
+        {
+          AMLT_BLOB_ROOT_DIR: "/mnt/storage/",
+          AZURE_BLOB_ROOT: "/mnt/storage/",
+          WANDB_API_KEY: "dbed33c088333b75f780fbcb8dd936819a253011",
+          HUGGINGFACE_HUB_TOKEN: "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",
+          _AZUREML_SINGULARITY_JOB_UAI: "/subscriptions/e033d461-1923-44a7-872b-78f1d35a86dd/resourcegroups/ml-ts/providers/Microsoft.ManagedIdentity/userAssignedIdentities/ml_ts_uai_240915"
+        }
