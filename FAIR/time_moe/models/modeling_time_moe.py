@@ -1099,7 +1099,7 @@ class TerminalODEBlock(nn.Module):
 
         # ODE solver expects time points as a 1D tensor.
         delta_t = t_Nplus1 - t_N
-        
+
         # Handle cases where delta_t might be zero or negative per batch item
         if torch.any(delta_t <= 0):
              warnings.warn("ODE integration interval delta_t <= 0 detected for some batch items. Returning initial state h_N for those items.")
