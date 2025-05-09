@@ -11,7 +11,8 @@ import gzip
 import yaml 
 from time_moe.utils.log_util import logger
 from time_moe.datasets.ts_dataset import TimeSeriesDataset
-
+import traceback
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 def quantize_time(times, 
                   initial_resolution=1.0, 
@@ -125,7 +126,7 @@ def load_pkl_obj(fn):
 
 class TimeAwareJSONLDataset(TimeSeriesDataset):
     # Keep __init__ largely the same, but add time normalization fitting
-    def __init__(self, data_path, time_normalization='standard', quantize_resolution=None, auto_quantize=False, sample_size=1000):
+    def __init__(self, data_path, time_normalization='standard', quantize_resolution=None, auto_quantize=False, sample_size=1000, data_normalizer = MinMaxScaler()):
         """
         Args:
             data_path (str): Path to the .jsonl file.
@@ -142,10 +143,36 @@ class TimeAwareJSONLDataset(TimeSeriesDataset):
         self.num_tokens = None
         self.quantize_resolution = quantize_resolution
         self.time_normalizer = None
-        self._fit_normalizer_and_infer_quantization(
-            time_normalization, auto_quantize, sample_size
-        )
+        self.data_normalizer = data_normalizer
+        # Fit data normalizer on all sequences
+        self._fit_data_normalizer()
+        # Fit time normalizer and infer quantization
+
         logger.info(f"Finished loading and preprocessing meta info for {data_path}.")
+
+    def _fit_data_normalizer(self):
+        all_vals = []
+        for item in self.data:
+            seq = None
+            if isinstance(item, dict) and 'sequence' in item:
+                seq = np.asarray(item['sequence'], dtype=np.float64)
+            elif isinstance(item, (list, np.ndarray)):
+                seq = np.asarray(item, dtype=np.float64)
+            if seq is None or seq.ndim != 1 or len(seq) == 0:
+                continue
+            all_vals.append(seq.reshape(-1, 1))
+        if not all_vals:
+            logger.warning("No valid sequence data available. Disabling data normalization.")
+            self.data_normalizer = None
+            return
+        all_data = np.vstack(all_vals)
+        try:
+            self.data_normalizer.fit(all_data)
+            logger.info(f"Fitted data normalizer {self.data_normalizer} on {all_data.shape[0]} values.")
+        except Exception as e:
+            logger.error(f"Error fitting data normalizer: {e}. Disabling normalization.")
+            self.data_normalizer = None
+
 
     def _fit_normalizer_and_infer_quantization(self, time_normalization, auto_quantize, sample_size):
         """Fit time normalizer and optionally infer quantization resolution."""
@@ -303,10 +330,13 @@ class TimeAwareJSONLDataset(TimeSeriesDataset):
         if self.quantize_resolution is not None:
             time = quantize_time(time, initial_resolution=self.quantize_resolution) # Use float32 result
 
+        if self.data_normalizer is not None:
+            seq = np.asarray(item['sequence'], dtype=np.float32)
+            seq = self.data_normalizer.transform(seq.reshape(-1,1)).reshape(-1)
         # Return data including mask and original times (normalization applied later)
         # Return time as float32 for consistency in tensors
         return {
-            'sequence': sequence,
+            'sequence': seq,
             'time': time.astype(np.float32),
             'mask': mask.astype(np.int32) # Use int32 for mask
         }
