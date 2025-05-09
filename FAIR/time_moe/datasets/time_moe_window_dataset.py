@@ -166,7 +166,6 @@ class TimeAwareWindowDataset(Dataset):
         # 5. Prepare `next_target_time_values` (Optional, but original code had it)
         next_target_time_value = valid_time_norm[1] if len(valid_time_norm) > 1 else np.nan
         next_target_time_value = np.float32(next_target_time_value)
-
         # 6. Return dictionary suitable for time_aware_collate_fn
         return {
             'input_ids': input_ids,        
@@ -174,7 +173,11 @@ class TimeAwareWindowDataset(Dataset):
             'attention_mask': attention_mask, 
             'labels': labels,              
             'loss_masks': loss_mask,        
+<<<<<<< HEAD
             'next_target_time_value': next_target_time_value 
+=======
+            'next_target_time_values': next_target_time_value 
+>>>>>>> 7e18418 ([DEBUG] CT-RoPE)
         }
 
 

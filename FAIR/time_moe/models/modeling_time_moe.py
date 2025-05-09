@@ -267,7 +267,7 @@ class ContinuousTimeRotaryEmbedding(nn.Module):
         # Apply rotation
         q_embed = (q * cos) + (rotate_half(q) * sin)
         k_embed = (k * cos) + (rotate_half(k) * sin)
-        return q_embed, k_embed
+        return q_embed, k_embed, cos, sin
 
 
 # Copied from transformers.models.mistral.modeling_mistral.MistralRotaryEmbedding with Mistral->TimeMOE
@@ -456,9 +456,8 @@ class TimeMoeAttention(nn.Module):
         self.v_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=True)
         self.o_proj = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
 
-        self.rotary_emb = TimeMoeRotaryEmbedding(
+        self.rotary_emb = ContinuousTimeRotaryEmbedding(
             self.head_dim,
-            max_position_embeddings=self.max_position_embeddings,
             base=self.rope_theta,
         )
 
@@ -469,12 +468,14 @@ class TimeMoeAttention(nn.Module):
             position_ids: Optional[torch.LongTensor] = None,
             past_key_value: Optional[Cache] = None,
             output_attentions: bool = False,
+            time_values: Optional[torch.Tensor] = None,
             **kwargs,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         if "padding_mask" in kwargs:
             warnings.warn(
                 "Passing `padding_mask` is deprecated and will be removed in v4.37. Please make sure use `attention_mask` instead.`"
             )
+        self._time_aware_rotary_flag = True
         bsz, q_len, _ = hidden_states.size()
 
         query_states = self.q_proj(hidden_states)
@@ -484,8 +485,9 @@ class TimeMoeAttention(nn.Module):
         query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
         key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
-
-        kv_seq_len = key_states.shape[-2]
+        past_len = past_key_value.get_usable_length(None, self.layer_idx)
+        kv_seq_len = past_len + key_states.shape[-2]
+        #kv_seq_len = key_states.shape[-2]
         if past_key_value is not None:
             if self.layer_idx is None:
                 raise ValueError(
@@ -495,25 +497,14 @@ class TimeMoeAttention(nn.Module):
                 )
             kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
         
-        if self._time_aware_rotary_flag:
+        if isinstance(self.rotary_emb, ContinuousTimeRotaryEmbedding):
             if time_values is None:
                 raise ValueError("`time_values` must be provided when using CT-RoPE.")
-
-            # CT-RoPE needs time values corresponding to the *current query and key states*.
-            # If using cache, key_states represents the *new* keys.
-            # The full time sequence needed depends on how CT-RoPE handles caching/relative positions.
-            # Our current CT-RoPE computes absolute embeddings.
-            # For generation (q_len=1), we rotate Q_new with t_new, K_new with t_new.
-            # K_past in cache was already rotated with t_past.
             if past_key_value is not None:
-                # Time values should correspond to the new tokens
                 time_values_for_rope = time_values[:, -q_len:] if time_values.shape[1] >= q_len else time_values
             else:
-                # Processing prompt or full sequence
                 time_values_for_rope = time_values
-
-            # Apply RoPE only to the *new* query and key states being computed now
-            query_states, key_states = self.rotary_emb(query_states, key_states, time_values_for_rope)
+            query_states, key_states, cos, sin = self.rotary_emb(query_states, key_states, time_values_for_rope)
 
         elif isinstance(self.rotary_emb, TimeMoeRotaryEmbedding): # Standard RoPE
             if position_ids is None:
@@ -548,11 +539,11 @@ class TimeMoeAttention(nn.Module):
         # Apply provided attention mask (additive 4D causal mask)
         if attention_mask is not None:
             # Ensure mask covers the full KV sequence length after caching
-            expected_mask_shape_part = (bsz, 1, q_len, attn_kv_seq_len)
+            expected_mask_shape_part = (bsz, 1, q_len, kv_seq_len)
             if attention_mask.shape != expected_mask_shape_part:
                 # Try slicing mask if it's longer (e.g., full context length mask passed)
-                if attention_mask.shape[-1] >= attn_kv_seq_len:
-                    attention_mask_sliced = attention_mask[:, :, -q_len:, :attn_kv_seq_len]
+                if attention_mask.shape[-1] >= kv_seq_len:
+                    attention_mask_sliced = attention_mask[:, :, -q_len:, :kv_seq_len]
                     if attention_mask_sliced.shape == expected_mask_shape_part:
                         attention_mask = attention_mask_sliced
                     else:
@@ -832,7 +823,6 @@ class TimeMoeDecoderLayer(nn.Module):
         residual = hidden_states
 
         hidden_states = self.input_layernorm(hidden_states)
-
         # Self Attention
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
             hidden_states=hidden_states,
@@ -841,6 +831,7 @@ class TimeMoeDecoderLayer(nn.Module):
             past_key_value=past_key_value,
             output_attentions=output_attentions,
             use_cache=use_cache,
+            time_values=time_values,
         )
         hidden_states = residual + hidden_states
 
@@ -989,7 +980,6 @@ class TimeMoeModel(TimeMoePreTrainedModel):
         all_self_attns = () if output_attentions else None
         all_router_logits = ()
         next_decoder_cache = None
-
         for decoder_layer in self.layers:
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
@@ -1012,6 +1002,7 @@ class TimeMoeModel(TimeMoePreTrainedModel):
                     past_key_value=past_key_values,
                     output_attentions=output_attentions,
                     use_cache=use_cache,
+                    time_values=time_values,
                 )
 
             hidden_states = layer_outputs[0]
@@ -1317,8 +1308,12 @@ class TimeMoeForPrediction(TimeMoePreTrainedModel, TSGenerationMixin):
 
          # --- Apply Terminal ODE Extrapolation (if enabled) ---
         hidden_states_for_head = hidden_states_last # Default to last state
+<<<<<<< HEAD
         # import pdb;pdb.set_trace()
 
+=======
+        import pdb; pdb.set_trace()
+>>>>>>> 7e18418 ([DEBUG] CT-RoPE)
         if self.use_terminal_ode and self.ode_extrapolation_block is not None:
             if next_target_time_values is None:
                  # In training, we might not extrapolate, only use ODE for regularization?
