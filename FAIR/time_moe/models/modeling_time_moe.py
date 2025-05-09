@@ -1308,12 +1308,8 @@ class TimeMoeForPrediction(TimeMoePreTrainedModel, TSGenerationMixin):
 
          # --- Apply Terminal ODE Extrapolation (if enabled) ---
         hidden_states_for_head = hidden_states_last # Default to last state
-<<<<<<< HEAD
         # import pdb;pdb.set_trace()
 
-=======
-        import pdb; pdb.set_trace()
->>>>>>> 7e18418 ([DEBUG] CT-RoPE)
         if self.use_terminal_ode and self.ode_extrapolation_block is not None:
             if next_target_time_values is None:
                  # In training, we might not extrapolate, only use ODE for regularization?
