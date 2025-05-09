@@ -140,19 +140,6 @@ class TimeMoeRunner:
         #     )
             
         #     time_normalizer_obj = base_dataset.get_time_normalizer()
-<<<<<<< HEAD
-
-        #     train_ds = TimeAwareWindowDataset(
-        #         dataset=base_dataset,
-        #         context_length=max_length,
-        #         prediction_length=0, 
-        #         time_normalizer=time_normalizer_obj,
-        #         min_valid_history=min_valid_hist
-        #     )
-        #     current_data_collator = time_aware_collate_fn
-        #     log_in_local_rank_0(f"Using TimeAwareWindowDataset with time normalization: {time_norm_method or 'None'}")
-
-=======
         #     train_ds = TimeAwareWindowDataset(
         #         dataset=base_dataset,
         #         context_length=max_length,
@@ -163,7 +150,6 @@ class TimeMoeRunner:
         #     current_data_collator = time_aware_collate_fn
         #     log_in_local_rank_0(f"Using TimeAwareWindowDataset with time normalization: {time_norm_method or 'None'}")
 
->>>>>>> 7e18418 ([DEBUG] CT-RoPE)
         # else:
         #      log_in_local_rank_0('Loading general TimeMoEDataset...')
         #      # sequence_normalization_method is for the values in the sequence itself
@@ -203,11 +189,7 @@ class TimeMoeRunner:
             )
 
             # 2. Get the fitted time normalizer (if any)
-<<<<<<< HEAD
-            # time_normalizer = base_dataset.get_time_normalizer()
-=======
             #time_normalizer = base_dataset.get_time_normalizer()
->>>>>>> 7e18418 ([DEBUG] CT-RoPE)
             # You might want to save/load this normalizer state for inference
 
             # 3. Instantiate the window dataset
@@ -215,11 +197,7 @@ class TimeMoeRunner:
                 dataset=base_dataset,
                 context_length=max_length,
                 prediction_length=0, # For autoregressive training
-<<<<<<< HEAD
-                # time_normalizer=time_normalizer,
-=======
                 #time_normalizer=time_normalizer,
->>>>>>> 7e18418 ([DEBUG] CT-RoPE)
                 min_valid_history=train_config.get('min_valid_history', 1) # Add config option
             )
             train_ds = window_dataset # Use this as the training dataset

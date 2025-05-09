@@ -173,11 +173,7 @@ class TimeAwareWindowDataset(Dataset):
             'attention_mask': attention_mask, 
             'labels': labels,              
             'loss_masks': loss_mask,        
-<<<<<<< HEAD
-            'next_target_time_value': next_target_time_value 
-=======
             'next_target_time_values': next_target_time_value 
->>>>>>> 7e18418 ([DEBUG] CT-RoPE)
         }
 
 
