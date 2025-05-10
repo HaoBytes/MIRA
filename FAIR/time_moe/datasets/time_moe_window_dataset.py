@@ -156,7 +156,7 @@ class TimeAwareWindowDataset(Dataset):
         # 3. Prepare input_ids, time_values, labels for AutoRegressive Task
         input_ids = valid_sequence[:-1].astype(np.float32)
         time_values = valid_time_norm[:-1].astype(np.float32) # Normalized times for input
-        labels = np.array([valid_sequence[-1]], dtype=np.float32)
+        labels = np.array([valid_sequence[-1].astype(np.float32)]) # Labels are the next step in the sequence
 
         # 4. Prepare attention mask and loss mask (for valid sequence length)
         current_length = len(input_ids)
@@ -164,8 +164,8 @@ class TimeAwareWindowDataset(Dataset):
         loss_mask = np.ones(len(labels), dtype=np.int32)
 
         # 5. Prepare `next_target_time_values` (Optional, but original code had it)
-        next_target_time_value = valid_time_norm[-1] if len(valid_time_norm) > 0 else np.nan
-
+        #next_target_time_value = valid_time_norm[1:] if len(valid_time_norm) > 0 else np.nan
+        next_target_time_value = valid_time_norm[-1]
         next_target_time_value = np.float32(next_target_time_value)
         # 6. Return dictionary suitable for time_aware_collate_fn
         return {

@@ -1194,12 +1194,15 @@ class TimeMoeOutputLayer(nn.Module):
 class TimeMoeForPrediction(TimeMoePreTrainedModel, TSGenerationMixin):
 
     def __init__(self, config: TimeMoeConfig):
+        config.horizon_lengths=[1]
         super().__init__(config)
         self.config = config
         self.apply_aux_loss = config.apply_aux_loss
         self.num_experts_per_tok = config.num_experts_per_tok
         self.router_aux_loss_factor = config.router_aux_loss_factor
-
+        '''
+        hard code for 1 lm_head
+        '''
         self.model = TimeMoeModel(config)
 
         # --- Initialize ODE Block (if enabled) ---
@@ -1307,7 +1310,6 @@ class TimeMoeForPrediction(TimeMoePreTrainedModel, TSGenerationMixin):
 
          # --- Apply Terminal ODE Extrapolation (if enabled) ---
         hidden_states_for_head = hidden_states_last # Default to last state
-        # import pdb;pdb.set_trace()
 
         if self.use_terminal_ode and self.ode_extrapolation_block is not None:
             if next_target_time_values is None:
@@ -1330,7 +1332,7 @@ class TimeMoeForPrediction(TimeMoePreTrainedModel, TSGenerationMixin):
                      h_N=hidden_states_last,
                      t_N=time_values_last,
                      t_Nplus1=next_target_time_values
-                 ) # Shape [B, D]
+                ) # Shape [B, D]
 
         # --- Prediction Heads ---
         # Unsqueeze the sequence dimension (now length 1) before passing to heads
