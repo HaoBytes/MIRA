@@ -6,6 +6,7 @@ from tqdm import tqdm
 from time_moe.datasets.ts_dataset import TimeSeriesDataset
 from torch.utils.data import Dataset
 from transformers.utils import logging
+from numpy.lib.stride_tricks import sliding_window_view
 
 logger = logging.get_logger(__name__)
 
@@ -49,41 +50,29 @@ class TimeAwareWindowDataset(Dataset):
 
         for seq_idx in iterator:
             try:
-                original_seq_len = self.source_dataset.get_sequence_length_by_idx(seq_idx) 
+                # ① 只读一次数据
+                item = self.source_dataset[seq_idx]
+                mask = item.get('mask', None)
+                if mask is None:        # 没有 mask → 全 1
+                    mask = np.ones_like(item['values'], dtype=np.int8)
+
+                seq_len = len(mask)
+                if seq_len < self.context_length:
+                    continue
+
+
+                view = sliding_window_view(mask, self.raw_window_size)
+
+                valid_starts = np.where(view.sum(axis=1) >= self.min_valid_history)[0]
+
+                self.valid_windows.extend(
+                    zip(
+                        np.full(len(valid_starts), seq_idx, dtype=np.int32),
+                        valid_starts.astype(np.int32)
+                    )
+                )
             except Exception as e:
-                # --- 打印更详细的错误信息 ---
-                import traceback
-                logger.error(f"EXCEPTION caught while getting sequence length for seq_idx {seq_idx}: {type(e).__name__} - {e}")
-                logger.error(traceback.format_exc()) # 打印完整的 traceback
-                # --- 结束修改 ---
-                original_seq_len = None # 保持设为 None
-
-            if original_seq_len is None:
-                logger.warning(f"Sequence length for seq_idx {seq_idx} ended up as None (likely due to error above). Skipping this sequence.")
-                continue 
-
-            if not isinstance(original_seq_len, int) or original_seq_len < 0:
-                 logger.warning(f"Invalid sequence length for seq_idx {seq_idx}: {original_seq_len}. Skipping.")
-                 continue # 跳过无效长度
-            
-            # Iterate through possible start points of raw windows
-            for start_idx in range(original_seq_len - self.raw_window_size + 1):
-                try:
-                    item = self.source_dataset[seq_idx] # Load item once
-                    if not isinstance(item, dict) or 'mask' not in item:
-                         logger.warning(f"Item at seq_idx {seq_idx} is not a dict or missing 'mask'. Assuming all valid for this window check.", once=True)
-                         raw_context_mask = np.ones(self.context_length, dtype=int) 
-                    else:
-                        if start_idx + self.context_length > len(item['mask']): continue
-                        raw_context_mask = item['mask'][start_idx : start_idx + self.context_length] # Check context part
-
-                    # 使用正确的属性名 self.min_valid_history
-                    if np.sum(raw_context_mask) >= self.min_valid_history:
-                        self.valid_windows.append((seq_idx, start_idx))
-                except Exception as e:
-                     logger.error(f"Error processing seq_idx {seq_idx} in __init__: {e}")
-
-
+                logger.exception(f"seq_idx {seq_idx}: {e}")
         if not self.valid_windows:
             # Update error message if needed
             raise ValueError(f"No valid AR windows found with context_length={context_length}, "
@@ -141,7 +130,8 @@ class TimeAwareWindowDataset(Dataset):
              # For simplicity during debugging, let's return a dummy dict that collate_fn might filter.
              # A truly robust solution filters self.valid_windows more strictly in __init__
              # or uses a filtering collate_fn.
-             return None # Let time_aware_collate_fn handle this
+             return None
+             #return None # Let time_aware_collate_fn handle this
 
         # 2. Time Normalization (apply to valid absolute times)
         valid_time_norm = valid_time_abs # Default if no normalizer
