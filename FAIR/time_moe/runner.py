@@ -64,7 +64,7 @@ class TimeMoeRunner:
             model = TimeMoeForPrediction.from_pretrained(model_path, **kwargs)
         return model
 
-    def train_model(self, from_scratch: bool = False, **kwargs):
+    def train_model(self, from_scratch: bool = False, resume_from_checkpoint: str = None, **kwargs):
         setup_seed(self.seed)
 
         train_config = kwargs
@@ -305,7 +305,7 @@ class TimeMoeRunner:
             args=training_args,
             train_dataset=train_ds,
         )
-        trainer.train()
+        trainer.train(resume_from_checkpoint=resume_from_checkpoint)
         trainer.save_model(self.output_path)
         log_in_local_rank_0(f'Saving model to {self.output_path}')
 
