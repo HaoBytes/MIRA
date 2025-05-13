@@ -1,7 +1,24 @@
 import argparse
+import re
+import os
 from time_moe.runner import TimeMoeRunner
 
+# ===== Checkpoint Detection Utility =====
+PREFIX_CHECKPOINT_DIR = "checkpoint"
+_re_checkpoint = re.compile(r"^" + PREFIX_CHECKPOINT_DIR + r"\-(\d+)$")
 
+def get_last_checkpoint(folder):
+    if not os.path.isdir(folder):
+        return None
+    content = os.listdir(folder)
+    checkpoints = [
+        path for path in content
+        if _re_checkpoint.search(path) is not None and os.path.isdir(os.path.join(folder, path))
+    ]
+    if len(checkpoints) == 0:
+        return None
+    return os.path.join(folder, max(checkpoints, key=lambda x: int(_re_checkpoint.search(x).groups()[0])))
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', '-d', type=str, help='Path to training data. (Folder contains data files, or data file)')
@@ -63,6 +80,12 @@ if __name__ == '__main__':
     if args.time_normalization_method == 'none': # For timestamp normalization
         args.time_normalization_method = None
 
+    last_checkpoint = get_last_checkpoint(args.output_path)
+    if last_checkpoint is not None:
+        print(f"Resuming training from checkpoint: {last_checkpoint}")
+    else:
+        print("No checkpoint found. Starting training from scratch.")
+        
     runner = TimeMoeRunner(
         model_path=args.model_path,
         output_path=args.output_path,
@@ -110,4 +133,5 @@ if __name__ == '__main__':
         time_auto_quantize=args.time_auto_quantize,
         data_sample_size=args.data_sample_size,
         min_valid_history=args.min_valid_history,
+        resume_from_checkpoint=last_checkpoint
     )
