@@ -6,8 +6,9 @@ from pathlib import Path
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import argparse
 from transformers import AutoModelForCausalLM
-import matplotlib.pyplot as plt               
-import seaborn as sns     
+import matplotlib.pyplot as plt
+import seaborn as sns
+import textwrap, os  
 
 
 @torch.no_grad()                            
@@ -167,31 +168,90 @@ def process_file(model, jsonl_path, settings, batch_size):
             })
     return summary
 
+def plot_multi_gating_mats(gating_dict, cmap="viridis", vmax=0.5, save_png=None):
+    """
+    gating_dict: Dict[str, ndarray[L,E]]
+                 key = json 文件名 (或任意 title)
+    """
+    n = len(gating_dict)
+    if n == 0:
+        return
+    layers, experts = next(iter(gating_dict.values())).shape
+
+    # 每个子图宽 3 英寸，高 5 英寸
+    fig, axes = plt.subplots(
+        1, n, figsize=(3 * n, 5), sharey=True,
+        gridspec_kw={"wspace": 0.15}
+    )
+    if n == 1:
+        axes = [axes]
+
+    for ax, (name, mat) in zip(axes, gating_dict.items()):
+        sns.heatmap(
+            mat, vmin=0, vmax=vmax, cmap=cmap,
+            ax=ax, cbar=False if ax is not axes[-1] else True,
+        )
+        # 如果文件名太长，简短显示
+        title = textwrap.shorten(os.path.basename(name), width=20, placeholder="…")
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Experts")
+        if ax is axes[0]:
+            ax.set_ylabel("Layers")
+        else:
+            ax.set_ylabel("")
+
+    plt.tight_layout()
+    if save_png:
+        plt.savefig(save_png, dpi=300, bbox_inches="tight")
+        print(f"[Info] multi-heatmap saved → {save_png}")
+    else:
+        plt.show()
 
 def main(args):
     model = AutoModelForCausalLM.from_pretrained(
         args.model, trust_remote_code=True, device_map="auto"
     )
     print(f"Loaded model: {args.model} on {model.device}")
-
+    gating_mats = {}                                             # <<< 新增
     jsonl_files = (
         list(Path(args.input_dir).rglob("*.jsonl"))
         if os.path.isdir(args.input_dir) else
         [Path(args.input_dir)]
     )
 
-    if args.gating_png or args.gating_npy:                   
-        all_records = []
-        for jf in jsonl_files:
-            all_records.extend(load_jsonl_records(jf))
-        gating_mat = collect_gating_scores(
-            model, all_records, ctx_len=args.ctx_len,
+    for jf in jsonl_files:
+        records = load_jsonl_records(jf)
+        mat = collect_gating_scores(
+            model, records, ctx_len=args.ctx_len,
             device=str(model.device)
-        )                                                       # Tensor[L,E]
+        )
+        gating_mats[str(jf)] = mat                               # key 用文件路径
+        # 也可以顺手存 .npy
         if args.gating_npy:
-            np.save(args.gating_npy, gating_mat.numpy())
-            print(f"[Info] gating matrix saved to {args.gating_npy}")
-        plot_gating_heatmap(gating_mat, save_png=args.gating_png)
+            npy_path = Path(args.gating_npy) / f"{jf.stem}.npy"
+            np.save(npy_path, mat.numpy())
+
+    # 统一画图
+    if args.gating_png:
+        plot_multi_gating_mats(
+            gating_mats,
+            cmap=args.cmap,            # 见下一节 CLI
+            vmax=args.vmax,
+            save_png=args.gating_png
+        )
+
+    # if args.gating_png or args.gating_npy:                   
+    #     all_records = []
+    #     for jf in jsonl_files:
+    #         all_records.extend(load_jsonl_records(jf))
+    #     gating_mat = collect_gating_scores(
+    #         model, all_records, ctx_len=args.ctx_len,
+    #         device=str(model.device)
+    #     )                                                       # Tensor[L,E]
+    #     if args.gating_npy:
+    #         np.save(args.gating_npy, gating_mat.numpy())
+    #         print(f"[Info] gating matrix saved to {args.gating_npy}")
+    #     plot_gating_heatmap(gating_mat, save_png=args.gating_png)
 
     settings = parse_settings(args.settings)
     overall_results = {f"{c}:{p}": {"mae": [], "mse": [], "rmse": []}
@@ -223,10 +283,13 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=16)
     # <<< 新增：控制采集 / 保存
     parser.add_argument("--gating_png", type=str,
-                        help="If set, draw heatmap and save as PNG")
+                        help="输出多子图热力图的 png 路径")
     parser.add_argument("--gating_npy", type=str,
-                        help="If set, save raw gating matrix as .npy")
-    parser.add_argument("--ctx_len", type=int, default=128,
-                        help="context length used when probing gating")
+                        help="若指定为目录，则把每个 gating mat 存 *.npy 到该目录")
+    parser.add_argument("--ctx_len", type=int, default=128)
+    parser.add_argument("--cmap", type=str, default="viridis",
+                        help="Matplotlib colormap 名称 (默认 viridis)")
+    parser.add_argument("--vmax", type=float, default=0.5,
+                        help="热力图上限 (默认为 0.5，与论文一致)")
     args = parser.parse_args()
     main(args)
