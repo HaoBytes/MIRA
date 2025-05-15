@@ -6,6 +6,57 @@ from pathlib import Path
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import argparse
 from transformers import AutoModelForCausalLM
+import matplotlib.pyplot as plt               
+import seaborn as sns     
+
+
+@torch.no_grad()                            
+def collect_gating_scores(model, records, ctx_len=128, device="cuda"):  
+
+    model.eval().to(device)
+
+    batch = []
+    for r in records:
+        seq = r["sequence"][:ctx_len]          # (ctx_len,)
+        batch.append(seq)
+    inp = torch.tensor(batch, dtype=torch.float32, device=device)  # [B, ctx_len]
+
+    out = model.model(
+        input_ids=inp,
+        output_attentions=False,
+        output_hidden_states=False,
+        return_dict=True
+    )
+    router_logits = out.router_logits          # list[L] each [B, ctx_len, E]
+    num_layers = len(router_logits)
+    num_experts = router_logits[0].shape[-1]
+    mats = []
+    for l in router_logits:
+        probs = torch.softmax(l, -1)
+        if probs.dim() == 3:                    # [B, seq, E]
+            mean_probs = probs.mean(dim=(0, 1))
+        else:                                   # [tokens, E]
+            mean_probs = probs.mean(dim=0)
+        mats.append(mean_probs)
+    return torch.stack(mats).cpu()   
+
+
+def plot_gating_heatmap(mat, title="Gating Scores", vmax=0.5, save_png=None):  
+    """
+    mat: Tensor/ndarray  [num_layers, num_experts]
+    """
+    plt.figure(figsize=(3, 5))
+    sns.heatmap(mat, vmin=0, vmax=vmax, cmap="YlGnBu",
+                cbar_kws={"label": "avg p(expert)"},
+                yticklabels=np.arange(mat.shape[0]),
+                xticklabels=np.arange(mat.shape[1]))
+    plt.ylabel("Layers"); plt.xlabel("Experts"); plt.title(title)
+    plt.tight_layout()
+    if save_png:
+        plt.savefig(save_png, dpi=300, bbox_inches="tight")
+        print(f"[Info] heatmap saved to {save_png}")
+    else:
+        plt.show()
 
 
 def parse_settings(settings_str):
@@ -118,38 +169,64 @@ def process_file(model, jsonl_path, settings, batch_size):
 
 
 def main(args):
-    model = AutoModelForCausalLM.from_pretrained(args.model, trust_remote_code=True, device_map="auto")
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model, trust_remote_code=True, device_map="auto"
+    )
     print(f"Loaded model: {args.model} on {model.device}")
 
-    jsonl_files = list(Path(args.input_dir).rglob("*.jsonl")) if os.path.isdir(args.input_dir) else [Path(args.input_dir)]
-    settings = parse_settings(args.settings)
+    jsonl_files = (
+        list(Path(args.input_dir).rglob("*.jsonl"))
+        if os.path.isdir(args.input_dir) else
+        [Path(args.input_dir)]
+    )
 
-    overall_results = {f"{ctx}:{pred}": {"mae": [], "mse": [], "rmse": []} for ctx, pred in settings}
+    if args.gating_png or args.gating_npy:                   
+        all_records = []
+        for jf in jsonl_files:
+            all_records.extend(load_jsonl_records(jf))
+        gating_mat = collect_gating_scores(
+            model, all_records, ctx_len=args.ctx_len,
+            device=str(model.device)
+        )                                                       # Tensor[L,E]
+        if args.gating_npy:
+            np.save(args.gating_npy, gating_mat.numpy())
+            print(f"[Info] gating matrix saved to {args.gating_npy}")
+        plot_gating_heatmap(gating_mat, save_png=args.gating_png)
+
+    settings = parse_settings(args.settings)
+    overall_results = {f"{c}:{p}": {"mae": [], "mse": [], "rmse": []}
+                       for c, p in settings}
 
     for jsonl_file in jsonl_files:
         print(f"\nProcessing {jsonl_file}...")
         summaries = process_file(model, jsonl_file, settings, args.batch_size)
         for s in summaries:
             key = f"{s['context_len']}:{s['pred_len']}"
-            print(f"{key} | MAE: {s['mae']:.4f}, MSE: {s['mse']:.4f}, RMSE: {s['rmse']:.4f}")
-            overall_results[key]["mae"].append(s['mae'])
-            overall_results[key]["mse"].append(s['mse'])
-            overall_results[key]["rmse"].append(s['rmse'])
+            print(f"{key} | MAE: {s['mae']:.4f}, MSE: {s['mse']:.4f}, "
+                  f"RMSE: {s['rmse']:.4f}")
+            for m in ["mae", "mse", "rmse"]:
+                overall_results[key][m].append(s[m])
 
     print("\n==== Overall Averages Across All Files ====")
     for key, metrics in overall_results.items():
         if metrics["mae"]:
-            avg_mae = np.mean(metrics["mae"])
-            avg_mse = np.mean(metrics["mse"])
-            avg_rmse = np.mean(metrics["rmse"])
-            print(f"{key} | MAE: {avg_mae:.4f}, MSE: {avg_mse:.4f}, RMSE: {avg_rmse:.4f}")
+            print(f"{key} | MAE: {np.mean(metrics['mae']):.4f}, "
+                  f"MSE: {np.mean(metrics['mse']):.4f}, "
+                  f"RMSE: {np.mean(metrics['rmse']):.4f}")
 
-
+# ------------------ 4. CLI 参数 ------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, required=True, help="Model name or path, e.g., Salesforce/moirai-1.1-R-base")
-    parser.add_argument("--input_dir", type=str, required=True, help="Path to a JSONL file or a directory containing JSONL files")
-    parser.add_argument("--settings", type=str, required=True, help='Settings in the format "context1:pred1,context2:pred2", e.g., "512:96,1024:192"')
-    parser.add_argument("--batch_size", type=int, default=16, help="Batch size for model inference (default: 16)")
+    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument("--input_dir", type=str, required=True)
+    parser.add_argument("--settings", type=str, required=True)
+    parser.add_argument("--batch_size", type=int, default=16)
+    # <<< 新增：控制采集 / 保存
+    parser.add_argument("--gating_png", type=str,
+                        help="If set, draw heatmap and save as PNG")
+    parser.add_argument("--gating_npy", type=str,
+                        help="If set, save raw gating matrix as .npy")
+    parser.add_argument("--ctx_len", type=int, default=128,
+                        help="context length used when probing gating")
     args = parser.parse_args()
     main(args)
