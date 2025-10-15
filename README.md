@@ -58,3 +58,6 @@ prediction_length = 6
 output = model.generate(normed_seqs, max_new_tokens=prediction_length)  # shape is [batch_size, 12 + 6]
 normed_predictions = output[:, -prediction_length:]  # shape is [batch_size, 6]
 ```
+
+---
+## Pre training
