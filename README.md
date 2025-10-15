@@ -11,7 +11,7 @@
 ## Overview
 
 <p align="center">
-  <img src="assets/mira_architecture.png" width="720"/>
+  <img src="images/Model_Architecture.pdf" width="720"/>
 </p>
 
 MIRA unifies representation learning across multiple medical time-series datasets and supports zero-shot forecasting for downstream clinical prediction tasks.
