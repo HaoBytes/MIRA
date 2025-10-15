@@ -21,3 +21,13 @@ MIRA unifies representation learning across multiple medical time-series dataset
 </p>
 
 ---
+
+## Installation
+
+Install Python 3.10+, and then install the dependencies:
+
+```shell
+pip install -r requirements.txt
+```
+
+**Note: MIRA requires `transformers==4.40.1` .**
