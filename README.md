@@ -13,8 +13,9 @@
 MIRA unifies representation learning across multiple medical time-series datasets and supports zero-shot forecasting for downstream clinical prediction tasks.
 
 **Key features**
-- Continuous-time modeling via CT-RoPE   
-- ODE-based extrapolation for irregular sampling  
+- CT-RoPE for continuous-time positional encoding
+- Frequency-specialized MoE to adapt across rhythms
+- Neural-ODE extrapolation for forecasting at arbitrary timestamps
 
 <p align="center">
   <img src="images/Model_Architecture.png" width="720"/>
