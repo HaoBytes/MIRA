@@ -15,9 +15,9 @@ MIRA unifies representation learning across multiple medical time-series dataset
 **Key features**
 - Continuous-time modeling via CT-RoPE   
 - ODE-based extrapolation for irregular sampling  
----
 
 <p align="center">
   <img src="images/Model_Architecture.png" width="720"/>
 </p>
 
+---
