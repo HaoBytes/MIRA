@@ -34,8 +34,22 @@ pip install -r requirements.txt
 **Note: MIRA requires `transformers==4.40.1` .**
 
 ---
+## Data Preparation
 
-## Making Forecasts
+### Data format example
+
+Each line represents one sample and must contain at least `sequence` and
+`time` fields:
+
+``` json
+{"sequence": [1.0, 1.2, 0.8, ...], "time": [0.12, 1.52, 2.31, ...], "mask": [1,1,1,...]}
+{"sequence": [5.1, 5.0, 5.3, ...], "time": [1699990000, 1699990600, 1699991200, ...], "mask": [1,1,1,...]}
+```
+---
+## Training
+
+
+## Inference
 
 ```python
 import torch
@@ -58,6 +72,3 @@ prediction_length = 6
 output = model.generate(normed_seqs, max_new_tokens=prediction_length)  # shape is [batch_size, 12 + 6]
 normed_predictions = output[:, -prediction_length:]  # shape is [batch_size, 6]
 ```
-
----
-## Pre training
