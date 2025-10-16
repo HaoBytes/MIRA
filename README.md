@@ -64,9 +64,6 @@ model = AutoModelForCausalLM.from_pretrained(
     trust_remote_code=True,
 )
 
-# use it when the flash-attn is available
-# model = AutoModelForCausalLM.from_pretrained('Maple728/TimeMoE-50M', device_map="auto", attn_implementation='flash_attention_2', trust_remote_code=True)
-
 # forecast
 prediction_length = 6
 output = model.generate(normed_seqs, max_new_tokens=prediction_length)  # shape is [batch_size, 12 + 6]
