@@ -108,6 +108,7 @@ normed_predictions = output[:, -prediction_length:]  # shape is [batch_size, 6]
 
 We appreciate the following GitHub repos a lot for their valuable code and efforts.
 
+- Time-MoE [\[repo\]](https://github.com/Time-MoE/Time-MoE)
 - Time-LLM [\[repo\]](https://github.com/KimMeen/Time-LLM)
 - TimeMixer [\[repo\]](https://github.com/kwuking/TimeMixer)
 - Time-Series-Library [\[repo\]](https://github.com/thuml/Time-Series-Library)
