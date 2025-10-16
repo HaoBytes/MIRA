@@ -72,3 +72,49 @@ prediction_length = 6
 output = model.generate(normed_seqs, max_new_tokens=prediction_length)  # shape is [batch_size, 12 + 6]
 normed_predictions = output[:, -prediction_length:]  # shape is [batch_size, 6]
 ```
+
+## Citation
+
+> Please let us know if you find out a mistake or have any suggestions!
+
+> If you find the MIRA models helpful in your research, please consider to star this repository and cite the
+> corresponding [paper](https://arxiv.org/abs/2506.07584):
+
+```
+@article{li2025mira,
+  title={MIRA: Medical Time Series Foundation Model for Real-World Health Data},
+  author={Li, Hao and Deng, Bowen and Xu, Chang and Feng, Zhiyuan and Schlegel, Viktor and Huang, Yu-Hao and Sun, Yizheng and Sun, Jingyuan and Yang, Kailai and Yu, Yiyao and others},
+  journal={arXiv preprint arXiv:2506.07584},
+  year={2025}
+}
+```
+
+## Related Resources
+* Time-MoE: Billion-Scale Time Series Foundation Models with Mixture of Experts, in *ICLR*. [\[paper\]](https://arxiv.org/abs/2409.16040)
+* TimeMixer++: A General Time Series Pattern Machine for Universal Predictive Analysis, in arXiv 2024. [\[paper\]](https://arxiv.org/abs/2410.16032) [\[GitHub Repo\]](https://github.com/kwuking/TimeMixer)
+* Towards Neural Scaling Laws for Time Series Foundation Models, arXiv 2024. [\[paper\]](https://arxiv.org/pdf/2410.12360)
+* Foundation Models for Time Series Analysis: A Tutorial and Survey, in *KDD*
+  2024. [\[paper\]](https://arxiv.org/abs/2403.14735) [\[Tutorial\]](https://wenhaomin.github.io/FM4TS.github.io/)
+* What Can Large Language Models Tell Us about Time Series Analysis, in *ICML*
+  2024. [\[paper\]](https://arxiv.org/abs/2402.02713)
+* Self-Supervised Learning for Time Series Analysis: Taxonomy, Progress, and Prospects, in *TPAMI*
+  2024. [\[paper\]](https://arxiv.org/abs/2306.10125) [\[Website\]](https://github.com/qingsongedu/Awesome-SSL4TS)
+* Transformers in Time Series: A Survey, in *IJCAI*
+  2023. [\[paper\]](https://arxiv.org/abs/2202.07125) [\[GitHub Repo\]](https://github.com/qingsongedu/time-series-transformers-review)
+* A Survey on Graph Neural Networks for Time Series: Forecasting, Classification, Imputation, and Anomaly Detection, in *TPAMI* 2024. [\[paper\]](https://arxiv.org/abs/2307.03759) [\[Website\]](https://github.com/KimMeen/Awesome-GNN4TS)
+
+
+## Acknowledgement
+
+We appreciate the following GitHub repos a lot for their valuable code and efforts.
+
+- Time-LLM [\[repo\]](https://github.com/KimMeen/Time-LLM)
+- TimeMixer [\[repo\]](https://github.com/kwuking/TimeMixer)
+- Time-Series-Library [\[repo\]](https://github.com/thuml/Time-Series-Library)
+- Large (Language) Models and Foundation Models (LLM, LM, FM) for Time Series and Spatio-Temporal
+  Data [\[repo\]](https://github.com/qingsongedu/Awesome-TimeSeries-SpatioTemporal-LM-LLM)
+
+## License
+
+This project is licensed under the Apache-2.0 License.
+
