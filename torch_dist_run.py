@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 _*-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 """
 Part of code from time_moe.torch_dist_run
