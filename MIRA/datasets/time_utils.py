@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
+
 import torch
 import numpy as np
 
@@ -63,3 +66,4 @@ def time_aware_collate_fn(batch, pad_value=0, pad_time_value=0.0):
 
 
     return collated_batch
+
