@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 _*-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import json
 import os 
@@ -435,5 +435,6 @@ class TimeAwareEvalDataset(Dataset):
 
             inputs['sequence'] = (inputs['sequence'] - mean) / std
             labels['sequence'] = (labels['sequence'] - mean) / std
+
 
         return inputs, labels
