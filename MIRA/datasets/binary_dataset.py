@@ -1,6 +1,5 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 _*-
-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 '''
 Code from time_moe.datasets.binary_dataset
