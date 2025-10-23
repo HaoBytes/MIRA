@@ -426,7 +426,6 @@ class MIRASparseExpertsLayer(nn.Module):
         return final_hidden_states, router_logits
 
 
-# Copied from transformers.models.qwen2.modeling_qwen2.Qwen2Attention
 class MIRAAttention(nn.Module):
     """
     Multi-headed attention from 'Attention Is All You Need' paper. Modified to use sliding window attention: Longformer
