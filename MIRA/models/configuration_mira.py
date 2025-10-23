@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
+
 '''
 Part of code from time_moe.models.configuration_time_moe
 https://github.com/Time-MoE
