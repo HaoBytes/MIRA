@@ -29,6 +29,7 @@ Install Python 3.10+, and then install the dependencies:
 
 ```shell
 pip install -r requirements.txt
+pip install torchdiffeq
 ```
 
 **Note: MIRA requires `transformers==4.40.1` .**
@@ -47,6 +48,28 @@ Each line represents one sample and must contain at least `sequence` and
 ```
 ---
 ## Training
+
+For distributed training on irregular medical data:
+
+```bash
+python torch_dist_run.py main.py \
+  --from_scratch \
+  -d ./yourdata.jsonl \
+  --output_path ./saveyoucheckpoints \
+  --save_steps 10000 \
+  --save_strategy steps \
+  --save_total_limit 10 \
+  --save_only_model \
+  --precision bf16 \
+  --time_aware_dataset \
+  --time_normalization_method minmax
+```
+
+For full argument list:
+
+```bash
+python main.py --help
+```
 
 
 ## Inference
