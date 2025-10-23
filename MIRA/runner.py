@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
+
 '''
 Code from time_moe.models.runner
 https://github.com/Time-MoE
