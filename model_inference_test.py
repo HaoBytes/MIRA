@@ -72,7 +72,7 @@ def run_inference(model_ckpt):
         input_ids=input_ids,
         time_values=time_values,
         mask=input_mask,
-        future_time_values=future_time_values,
+        next_target_time_values=future_time_values,
         future_mask=future_mask,
         max_length=L + P,
         do_sample=False,
