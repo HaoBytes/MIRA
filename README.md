@@ -161,6 +161,13 @@ Access link: https://physionet.org/content/ptb-xl/1.0.3/
 - **Sleep-EDF** — 
 Access link: https://physionet.org/content/sleep-edfx/1.0.0/
 
+## Result
+
+Our model demonstrates robustness when evaluated on out-of-distribution (OOD) clinical time-series. The table below summarizes the model's behavior under different clincial dataset.
+<p align="center">
+  <img src="images/ood.png" width="75%" alt="OOD performance overview"/>
+</p>
+
 
 ## Citation
 
