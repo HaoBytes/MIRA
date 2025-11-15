@@ -62,7 +62,7 @@ python torch_dist_run.py main.py \
   --save_only_model \
   --precision bf16 \
   --time_aware_dataset \
-  --time_normalization_method minmax
+  --time_aware_rotary
 ```
 
 For full argument list:
@@ -92,6 +92,19 @@ prediction_length = 6
 output = model.generate(normed_seqs, max_new_tokens=prediction_length)  # shape is [batch_size, 12 + 6]
 normed_predictions = output[:, -prediction_length:]  # shape is [batch_size, 6]
 ```
+
+## Datasets
+
+All datasets used in this project are clinical or physiological time-series datasets. Because these datasets contain sensitive human subject information, they are governed by strict data-use agreements (DUA) and protected access policies. Therefore, the raw datasets cannot be redistributed in this repository. You must apply for access through the official data providers listed below.
+
+> 1.	MIMIC-III / MIMIC-IV
+Access link: https://physionet.org/content/mimiciv/
+> 	2.	WAVES Pediatric Waveform Database
+Access link: https://redivis.com/WAVES/datasets
+> 	3.	PTB-XL
+Access link: https://physionet.org/content/ptb-xl/1.0.3/
+> 	4.	Sleep-EDF
+Access link: https://physionet.org/content/sleep-edfx/1.0.0/
 
 ## Citation
 
