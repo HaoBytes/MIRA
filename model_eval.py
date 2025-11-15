@@ -6,54 +6,46 @@ import torch.nn.functional as F
 import json
 import argparse
 
-# MIRA imports
 from MIRA.mira.models.modeling_mira import MIRAForPrediction
 from MIRA.mira.models.utils_time_normalization import normalize_time_for_ctrope
 
 
 def load_jsonl_timeseries(jsonl_path, use_mask=False):
-    """
-    Load a JSONL time-series dataset where each line contains:
-        {"sequence": [...], "time": [...], "mask": [...]}
-
-    Returns:
-        dataset_values: [N, T]
-        dataset_times : [N, T]
-    """
-    sequences, times, masks = [], [], []
+    sequences = []
+    times = []
+    masks = []
 
     with open(jsonl_path, "r") as f:
         for line in f:
             obj = json.loads(line)
+
             seq = obj["sequence"]
-            tms = obj["time"] if "time" in obj else list(range(len(seq)))
-            msk = obj["mask"] if "mask" in obj else [1] * len(seq)
+            tms = obj.get("time", list(range(len(seq))))
+            msk = obj.get("mask", [1] * len(seq))
 
             sequences.append(torch.tensor(seq, dtype=torch.float32))
             times.append(torch.tensor(tms, dtype=torch.float32))
             masks.append(torch.tensor(msk, dtype=torch.float32))
 
-    dataset_values = torch.stack(sequences)
-    dataset_times = torch.stack(times)
+    dataset_values = torch.stack(sequences, dim=0)
+    dataset_times = torch.stack(times, dim=0)
+    dataset_masks = torch.stack(masks, dim=0)
 
     if use_mask:
-        dataset_masks = torch.stack(masks)
         return dataset_values, dataset_times, dataset_masks
-    else:
-        return dataset_values, dataset_times
-
+    return dataset_values, dataset_times
 
 def normalize(values, mean, std):
     return (values - mean) / std
 
+
 def denormalize(values, mean, std):
     return values * std + mean
 
-
 def normalize_time_once(raw_times):
     """
-    Apply CT-RoPE time normalization ONCE for the whole sequence
-    so that inference is consistent with training.
+    Perform CT-RoPE normalization once on full sequence.
+    Keeps inference consistent across all autoregressive steps.
     """
     B, T = raw_times.shape
     attn = torch.ones_like(raw_times)
@@ -68,15 +60,16 @@ def normalize_time_once(raw_times):
 
 
 def normalize_future_t(raw_t, t_min, t_max, L):
+    """Normalize future timestamps."""
     denom = (t_max - t_min).clamp(min=1e-8)
     return (raw_t - t_min) / denom * (L - 1)
 
-
 def mira_predict_autoreg_norm(model, values, raw_times, context_len, pred_len, mean, std):
-
     device = next(model.parameters()).device
+
     values = values.to(device)
     raw_times = raw_times.to(device)
+
     mean = mean.to(device)
     std = std.to(device)
 
@@ -90,17 +83,17 @@ def mira_predict_autoreg_norm(model, values, raw_times, context_len, pred_len, m
     fut_raw_times = raw_times[:, context_len:context_len + pred_len]
 
     preds_norm_list = []
+
     cur_vals = hist_vals.clone()
     cur_times = hist_times.clone()
 
-    T = raw_times.shape[1]
+    L = raw_times.shape[1]
 
     for i in range(pred_len):
 
         inp_vals = cur_vals.unsqueeze(-1)
         inp_times = cur_times
 
-        # autoregressive
         with torch.no_grad():
             out = model(
                 input_ids=inp_vals,
@@ -109,14 +102,12 @@ def mira_predict_autoreg_norm(model, values, raw_times, context_len, pred_len, m
                 return_dict=True
             )
 
-        next_norm = out.logits[:, -1, :]  # shape [1,1]
+        next_norm = out.logits[:, -1, :]
         preds_norm_list.append(next_norm.squeeze(0))
 
-        # Normalize future time
         next_raw_t = fut_raw_times[:, i:i+1]
-        next_scaled_t = normalize_future_t(next_raw_t, t_min, t_max, T)
+        next_scaled_t = normalize_future_t(next_raw_t, t_min, t_max, L)
 
-        # Append to running window
         cur_vals = torch.cat([cur_vals, next_norm], dim=1)
         cur_times = torch.cat([cur_times, next_scaled_t], dim=1)
 
@@ -125,93 +116,108 @@ def mira_predict_autoreg_norm(model, values, raw_times, context_len, pred_len, m
 
     return preds.squeeze(0)
 
-
 def evaluate_one_window(model, seq, times, C, P, mean, std):
-    seq = seq.to(model.device)
-    times = times.to(model.device)
-
-    preds = mira_predict_autoreg_norm(
-        model, seq.unsqueeze(0), times.unsqueeze(0), C, P, mean, std
-    )
+    preds = mira_predict_autoreg_norm(model, seq.unsqueeze(0), times.unsqueeze(0), C, P, mean, std)
 
     gt = seq[C:C+P]
 
-    rmse = torch.sqrt(F.mse_loss(preds, gt))
-    mae = F.l1_loss(preds, gt)
-    return rmse.item(), mae.item()
+    rmse = torch.sqrt(F.mse_loss(preds, gt)).item()
+    mae = F.l1_loss(preds, gt).item()
 
+    return rmse, mae
 
-def rolling_eval_dataset(model, dataset_values, dataset_times, settings):
+def evaluate_one_sequence_nonoverlap(model, seq, times, C, P, mean, std):
+    rmses = []
+    maes = []
 
+    T = seq.size(0)
+    window_size = C + P
+
+    for start in range(0, T, window_size):
+        end = start + window_size
+        if end > T:
+            break
+
+        seq_win = seq[start:end]
+        tms_win = times[start:end]
+
+        rmse, mae = evaluate_one_window(model, seq_win, tms_win, C, P, mean, std)
+
+        rmses.append(rmse)
+        maes.append(mae)
+
+    return rmses, maes
+
+def rolling_eval_dataset(model, dataset_values, dataset_times, settings, normalize_each=True):
     results = {}
 
     for (C, P) in settings:
-        print(f"\n===== Evaluating: context={C}, pred={P} =====")
-
-        rmses, maes = [], []
+        print(f"\n===== Evaluating setting: context={C}, pred={P} =====")
+        all_rmse, all_mae = [], []
 
         for idx in range(dataset_values.size(0)):
             seq = dataset_values[idx]
-            tms = dataset_times[idx]
+            times = dataset_times[idx]
 
             if seq.size(0) < C + P:
                 continue
 
-            mean = seq.mean()
-            std = seq.std() + 1e-6
+            if normalize_each:
+                mean = seq.mean()
+                std = seq.std() + 1e-6
+            else:
+                mean = torch.tensor(0.0)
+                std = torch.tensor(1.0)
 
-            rmse, mae = evaluate_one_window(model, seq, tms, C, P, mean, std)
-            rmses.append(rmse)
-            maes.append(mae)
+            rmses, maes = evaluate_one_sequence_nonoverlap(model, seq, times, C, P, mean, std)
 
-        results[(C, P)] = {
-            "rmse": sum(rmses) / len(rmses),
-            "mae": sum(maes) / len(maes),
-            "n": len(rmses),
-        }
+            all_rmse.extend(rmses)
+            all_mae.extend(maes)
 
-        print(f"[{C}->{P}] RMSE={results[(C,P)]['rmse']:.4f}, "
-              f"MAE={results[(C,P)]['mae']:.4f}, N={results[(C,P)]['n']}")
+        rmse_avg = sum(all_rmse) / len(all_rmse)
+        mae_avg = sum(all_mae) / len(all_mae)
+
+        results[(C, P)] = dict(rmse=rmse_avg, mae=mae_avg, n=len(all_rmse))
+
+        print(f"[{C}->{P}] N={len(all_rmse)}, RMSE={rmse_avg:.4f}, MAE={mae_avg:.4f}")
 
     return results
 
-
 def main():
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_ckpt", type=str, required=True)
-    parser.add_argument("--jsonl_path", type=str, required=True)
+    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument("--data", type=str, required=True)
     args = parser.parse_args()
 
-    print(f"[INFO] Loading model: {args.model_ckpt}")
-    model = MIRAForPrediction.from_pretrained(args.model_ckpt).cuda()
+    print("[INFO] Loading model:", args.model)
+    model = MIRAForPrediction.from_pretrained(args.model).cuda()
     model.eval()
 
-    print("\n[INFO] Loading dataset...")
-    dataset_values, dataset_times = load_jsonl_timeseries(args.jsonl_path)
-    print(f"  Loaded values: {dataset_values.shape}")
-    print(f"  Loaded times : {dataset_times.shape}")
+    print("[INFO] Loading dataset:", args.data)
+    dataset_values, dataset_times = load_jsonl_timeseries(args.data)
+    print("Values:", dataset_values.shape)
+    print("Times:", dataset_times.shape)
 
     settings = [
         (48, 24),
         (72, 36),
         (96, 48),
-        (120, 60),
+        (128, 64),
     ]
 
-    results = rolling_eval_dataset(
-        model, dataset_values, dataset_times, settings
-    )
+    results = rolling_eval_dataset(model, dataset_values, dataset_times, settings)
+
+    total_rmse = [v["rmse"] for v in results.values()]
+    total_mae = [v["mae"] for v in results.values()]
 
     print("\n======= FINAL SUMMARY =======")
-    for (C, P), info in results.items():
+    for (C,P), info in results.items():
         print(f"{C}->{P}: RMSE={info['rmse']:.4f}, MAE={info['mae']:.4f}, N={info['n']}")
 
-    rmse_avg = sum(info["rmse"] for info in results.values()) / len(results)
-    mae_avg = sum(info["mae"] for info in results.values()) / len(results)
-
-    print("\n======= OVERALL AVERAGE =======")
-    print(f"Overall RMSE = {rmse_avg:.4f}")
-    print(f"Overall MAE  = {mae_avg:.4f}")
+    print("\nOVERALL AVERAGE")
+    print("RMSE =", sum(total_rmse) / len(total_rmse))
+    print("MAE  =", sum(total_mae) / len(total_mae))
 
 
 if __name__ == "__main__":
