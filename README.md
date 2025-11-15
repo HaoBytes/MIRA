@@ -10,12 +10,15 @@
 
 ## Overview
 
-MIRA unifies representation learning across multiple medical time-series datasets and supports zero-shot forecasting for downstream clinical prediction tasks.
+MIRA is a foundation model for medical time-series, designed to learn a unified representation space across heterogeneous clinical datasets and support zero-shot forecasting in real-world healthcare settings. Unlike conventional time-series models that operate on fixed sampling rates or task-specific feature spaces, MIRA is built to handle irregular, multimodal, and clinically diverse signals natively. By combining continuous-time encoding, frequency-aware specialization, and neural dynamics modeling, MIRA generalizes robustly across conditions.
 
 **Key features**
-- CT-RoPE for continuous-time positional encoding
-- Frequency-specialized MoE to adapt across rhythms
-- Neural-ODE extrapolation for forecasting at arbitrary timestamps
+- Continuous-Time Rotary Positional Encoding (CT-RoPE)
+Provides a principled way to embed irregular timestamps while preserving temporal geometry, enabling robust reasoning across arbitrary sampling patterns.
+- Frequency-specialized Mixture-of-Experts
+Allows different experts to specialize on physiological signs, improving transfer across diverse clinical signals.
+- Neural ODE Extrapolation
+Models latent dynamics continuously over time, enabling forecasting at arbitrary future timestamps.
 
 <p align="center">
   <img src="images/Model_Architecture.png" width="720"/>
