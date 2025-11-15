@@ -1,3 +1,8 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
+
+
+
 import warnings
 from typing import Any, Dict, List, Optional, Union
 
@@ -11,11 +16,8 @@ from transformers.utils import ModelOutput
 
 class MIRAGenerationMixin(GenerationMixin):
     """
-    Generation mixin for MIRA model with CT-RoPE and ODE support.
-    Key modifications:
-    1. Proper time_values propagation during generation
-    2. next_target_time_values computation for ODE block
-    3. Compatible with KV cache mechanism
+    Please note that the current version does not support inference with key-value caching.
+    The following code will update soon.
     """
 
     def _greedy_search(
@@ -38,11 +40,10 @@ class MIRAGenerationMixin(GenerationMixin):
         input_ids_origin_device = input_ids.device
         input_ids = input_ids.to(self.device)
         
-        # 处理输入形状：支持 [B, L] 或 [B, L, input_size]
         if len(input_ids.shape) == 2:
             batch_size, cur_len = input_ids.shape
             # 如果是 2D，添加 input_size 维度
-            input_ids = input_ids.unsqueeze(-1)  # [B, L] -> [B, L, 1]
+            input_ids = input_ids.unsqueeze(-1) 
         elif len(input_ids.shape) == 3:
             batch_size, cur_len, _ = input_ids.shape
         else:
@@ -113,8 +114,6 @@ class MIRAGenerationMixin(GenerationMixin):
 
         max_length = stopping_criteria.max_length
         
-        # ===== 关键修改：初始化时间相关变量 =====
-        # 获取初始 time_values，如果没有则创建默认时间序列
         if "time_values" not in model_kwargs or model_kwargs["time_values"] is None:
             # 创建默认时间序列 [0, 1, 2, ..., cur_len-1]
             model_kwargs["time_values"] = torch.arange(
@@ -122,14 +121,12 @@ class MIRAGenerationMixin(GenerationMixin):
             ).unsqueeze(0).expand(batch_size, -1)
             warnings.warn("time_values not provided, using default sequential time [0, 1, 2, ...]")
         
-        # 计算并存储初始时间步长（存在 _internal_time_step 中，避免被 HF 验证器拒绝）
         if model_kwargs["time_values"].shape[1] > 1:
             time_diffs = model_kwargs["time_values"][:, 1:] - model_kwargs["time_values"][:, :-1]
             self._internal_time_step = time_diffs.mean(dim=1, keepdim=True)  # [B, 1]
         else:
             self._internal_time_step = torch.ones(batch_size, 1, device=input_ids.device)
         
-        # 存储原始时间值用于后续更新
         self._last_time_values = model_kwargs["time_values"][:, -1:].clone()
         
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus, device=input_ids.device):
@@ -244,10 +241,6 @@ class MIRAGenerationMixin(GenerationMixin):
             is_encoder_decoder: bool = False,
             standardize_cache_format: bool = False,
     ) -> Dict[str, Any]:
-        """
-        更新生成过程中的模型参数，特别是时间相关的参数
-        """
-        # update past_key_values
         model_kwargs["past_key_values"] = self._extract_past_from_model_output(
             outputs, standardize_cache_format=standardize_cache_format
         )
@@ -278,15 +271,12 @@ class MIRAGenerationMixin(GenerationMixin):
                     dim=-1,
                 )
 
-        # ===== 关键修改：更新时间值 =====
         if "time_values" in model_kwargs and model_kwargs["time_values"] is not None:
             current_time_values = model_kwargs["time_values"]
             
-            # 使用存储的时间步长
             if hasattr(self, '_internal_time_step'):
                 time_step = self._internal_time_step
             else:
-                # 回退方案：从当前时间值推断
                 if current_time_values.shape[1] > 1:
                     time_diffs = current_time_values[:, 1:] - current_time_values[:, :-1]
                     time_step = time_diffs.mean(dim=1, keepdim=True)
@@ -296,8 +286,6 @@ class MIRAGenerationMixin(GenerationMixin):
                         device=current_time_values.device
                     )
             
-            # 为新生成的 token(s) 创建时间值
-            # 从最后一个时间值开始，按 time_step 递增
             last_time = current_time_values[:, -1:]  # [B, 1]
             new_times = []
             for i in range(1, horizon_length + 1):
@@ -309,12 +297,9 @@ class MIRAGenerationMixin(GenerationMixin):
                     [current_time_values, new_time_values], dim=1
                 )
             
-            # 更新存储的最后时间值
             self._last_time_values = model_kwargs["time_values"][:, -1:].clone()
-        
-        # ===== 更新 next_target_time_values (用于 ODE 块) =====
+
         if "time_values" in model_kwargs and model_kwargs["time_values"] is not None:
-            # next_target_time_values 应该是下一个要预测的时间点
             last_time = model_kwargs["time_values"][:, -1:]  # [B, 1]
             
             if hasattr(self, '_internal_time_step'):
