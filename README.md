@@ -75,22 +75,19 @@ python main.py --help
 ## Inference
 
 ```python
+Below is a minimal example of running MIRA for forecasting:
+
+```python
 import torch
-from transformers import AutoModelForCausalLM
+from MIRA.mira.models.modeling_mira import MIRAForPrediction
 
-context_length = 12
-normed_seqs = torch.randn(2, context_length)  # tensor shape is [batch_size, context_length]
+model = MIRAForPrediction.from_pretrained("YOUR_CHECKPOINT").cuda()
+seq   = torch.randn(1, 40)
+time  = torch.cumsum(torch.rand(1, 40) * 0.15 + 0.05, dim=1)
 
-model = AutoModelForCausalLM.from_pretrained(
-    'MIRA',
-    device_map="cpu",  # use "cpu" for CPU inference, and "cuda" for GPU inference.
-    trust_remote_code=True,
-)
-
-# forecast
-prediction_length = 6
-output = model.generate(normed_seqs, max_new_tokens=prediction_length)  # shape is [batch_size, 12 + 6]
-normed_predictions = output[:, -prediction_length:]  # shape is [batch_size, 6]
+from examples.mira_inference_demo import mira_forecast
+pred = mira_forecast(model, seq, time, context_length=12, pred_length=6)
+print(pred)
 ```
 
 ## Datasets
