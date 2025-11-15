@@ -74,20 +74,78 @@ python main.py --help
 
 ## Inference
 
-```python
-Below is a minimal example of running MIRA for forecasting:
-
-```python
+```bash
 import torch
 from MIRA.mira.models.modeling_mira import MIRAForPrediction
+from MIRA.mira.models.utils_time_normalization import normalize_time_for_ctrope
 
-model = MIRAForPrediction.from_pretrained("YOUR_CHECKPOINT").cuda()
-seq   = torch.randn(1, 40)
-time  = torch.cumsum(torch.rand(1, 40) * 0.15 + 0.05, dim=1)
+seq  = torch.tensor([[...]], dtype=torch.float32)      
+time = torch.tensor([[...]], dtype=torch.float32)     
 
-from examples.mira_inference_demo import mira_forecast
-pred = mira_forecast(model, seq, time, context_length=12, pred_length=6)
-print(pred)
+C = 12   # history length
+P = 6    # forecast horizon
+T = seq.shape[1]
+
+attn = torch.ones_like(time)
+
+full_scaled_times, t_min, t_max = normalize_time_for_ctrope(
+    time_values=time,
+    attention_mask=attn,
+    seq_length=T,
+    alpha=1.0,
+)
+
+hist_times   = full_scaled_times[:, :C]
+future_times = full_scaled_times[:, C:C+P]
+
+mean = seq.mean(dim=1, keepdim=True)
+std  = seq.std(dim=1, keepdim=True) + 1e-6
+
+seq_norm  = (seq - mean) / std
+hist_vals = seq_norm[:, :C]
+
+ckpt_path = "/path/to/your/mira_checkpoint"
+model = MIRAForPrediction.from_pretrained(ckpt_path).cuda()
+model.eval()
+
+device = next(model.parameters()).device
+hist_vals    = hist_vals.to(device)
+hist_times   = hist_times.to(device)
+future_times = future_times.to(device)
+
+cur_vals  = hist_vals.clone()
+cur_times = hist_times.clone()
+
+preds_norm = []
+
+for i in range(P):
+
+    # model input
+    inp_vals  = cur_vals.unsqueeze(-1)   # [1, L, 1]
+    inp_times = cur_times                # [1, L]
+
+    with torch.no_grad():
+        out = model(
+            input_ids=inp_vals,
+            time_values=inp_times,
+            next_target_time_values=None,  # no ODE for 1-step
+            return_dict=True,
+        )
+
+    next_norm = out.logits[:, -1, :]     # [1, 1]
+    preds_norm.append(next_norm.squeeze(0))
+
+    next_t = future_times[:, i:i+1]
+
+    cur_vals  = torch.cat([cur_vals, next_norm], dim=1)
+    cur_times = torch.cat([cur_times, next_t], dim=1)
+
+
+preds_norm = torch.stack(preds_norm, dim=1)   # [1, P]
+
+preds = preds_norm * std[:, :, :] + mean[:, :, :]
+preds = preds.squeeze(0)
+print(preds)
 ```
 
 ## Datasets
