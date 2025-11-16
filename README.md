@@ -35,7 +35,7 @@ pip install -r requirements.txt
 pip install torchdiffeq
 ```
 
-**Note: MIRA requires `transformers==4.40.1` .**
+**Note: MIRA requires `torchdiffeq` for ODE.**
 
 ---
 ## Data Preparation
