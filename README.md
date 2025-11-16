@@ -46,8 +46,8 @@ Each line represents one sample and must contain at least `sequence` and
 `time` fields:
 
 ``` json
-{"sequence": [1.0, 1.2, 0.8, ...], "time": [0.12, 1.52, 2.31, ...], "mask": [1,1,1,...]}
-{"sequence": [5.1, 5.0, 5.3, ...], "time": [1699990000, 1699990600, 1699991200, ...], "mask": [1,1,1,...]}
+{"sequence": [1.0, 1.2, 0.8, ...], "time": [0.12, 0.22, 0.41, ...], "mask": [1,1,1,...]}
+{"sequence": [5.1, 5.0, 5.3, ...], "time": [1, 2.1, 3.1, ...], "mask": [1,1,1,...]}
 ```
 ---
 ## Training
