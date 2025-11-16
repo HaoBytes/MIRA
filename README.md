@@ -106,6 +106,8 @@ python main.py --help
 
 ## Inference
 
+Below is an exmaple how to doing inference. 
+
 ```bash
 import torch
 from MIRA.mira.models.modeling_mira import MIRAForPrediction
@@ -178,6 +180,11 @@ preds_norm = torch.stack(preds_norm, dim=1)   # [1, P]
 preds = preds_norm * std[:, :, :] + mean[:, :, :]
 preds = preds.squeeze(0)
 print(preds)
+```
+You can also refer to 
+
+```bash
+python model_eval.py 
 ```
 
 ## Datasets
