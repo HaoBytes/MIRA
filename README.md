@@ -52,7 +52,7 @@ Each line represents one sample and must contain at least `sequence` and
 ---
 ## Training
 
-For distributed training on irregular medical data:
+MIRA can be trained on either CPU or GPU environments. The training script automatically handles model initialization, dataset loading, and checkpointing. Below we provide example commands for common setups. For training on irregular medical data:
 
 ```bash
 python torch_dist_run.py main.py \
@@ -70,17 +70,18 @@ python torch_dist_run.py main.py \
 
 ### CPU
 
-For training with cpu, execute the following command and ensure to replace <data_path> with the path to your prepared dataset:
+If you prefer to train on CPU, simply point the script to your dataset directory:
 ```bash
 python main.py -d <data_path>
 ```
 
 ### GPU
-To leverage a single GPU or multiple GPUs on a single node, use this command:
+The project includes a lightweight launcher that wraps PyTorch distributed training. On a machine with one or multiple GPUs, launch training via:
 ```bash
 python torch_dist_run.py main.py -d <data_path>
 ```
-For training across multiple nodes, additional environment configurations are necessary to facilitate inter-node communication:
+
+For multi-node setups, standard PyTorch elastic variables must be configured.
 
 ```bash
 export MASTER_ADDR=<master_addr>
@@ -89,7 +90,8 @@ export WORLD_SIZE=<world_size>
 export RANK=<rank>
 python torch_dist_run.py main.py -d <data_path>
 ```
-To train Time-MoE from scratch, simply include the --from_scratch argument in your command. Here's how it should look:
+
+To training from scratch, please include the --from_scratch argument in your command. 
 
 ```bash
 python torch_dist_run.py main.py -d <data_path> --from_scratch
