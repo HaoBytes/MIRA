@@ -68,6 +68,33 @@ python torch_dist_run.py main.py \
   --time_aware_rotary
 ```
 
+### CPU
+
+For training with cpu, execute the following command and ensure to replace <data_path> with the path to your prepared dataset:
+```bash
+python main.py -d <data_path>
+```
+
+### GPU
+To leverage a single GPU or multiple GPUs on a single node, use this command:
+```bash
+python torch_dist_run.py main.py -d <data_path>
+```
+For training across multiple nodes, additional environment configurations are necessary to facilitate inter-node communication:
+
+```bash
+export MASTER_ADDR=<master_addr>
+export MASTER_PORT=<master_port>
+export WORLD_SIZE=<world_size>
+export RANK=<rank>
+python torch_dist_run.py main.py -d <data_path>
+```
+To train Time-MoE from scratch, simply include the --from_scratch argument in your command. Here's how it should look:
+
+```bash
+python torch_dist_run.py main.py -d <data_path> --from_scratch
+```
+
 For full argument list:
 
 ```bash
@@ -107,7 +134,7 @@ std  = seq.std(dim=1, keepdim=True) + 1e-6
 seq_norm  = (seq - mean) / std
 hist_vals = seq_norm[:, :C]
 
-ckpt_path = "/path/to/your/mira_checkpoint"
+ckpt_path = "/checkpoint"
 model = MIRAForPrediction.from_pretrained(ckpt_path).cuda()
 model.eval()
 
