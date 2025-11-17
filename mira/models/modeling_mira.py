@@ -961,7 +961,6 @@ class MIRAModel(MIRAPreTrainedModel):
                 past_key_values = DynamicCache.from_legacy_cache(past_key_values)
             past_key_values_length = past_key_values.get_usable_length(seq_length)
 
-        # --- Position IDs (for standard RoPE fallback) ---
         if position_ids is None:
             device = input_ids.device if input_ids is not None else inputs_embeds.device
             position_ids = torch.arange(
@@ -972,9 +971,7 @@ class MIRAModel(MIRAPreTrainedModel):
         else:
             position_ids = position_ids.view(-1, seq_length).long()
         
-        # --- CT-RoPE Compatible Per-sample Time Normalization ---
         if time_values is not None and getattr(self.config, "time_aware_rotary", False):
-            # 使用工具函数统一做归一化
             alpha = getattr(self.config, "time_scale", 1.0)
             time_values, t_min, t_max = normalize_time_for_ctrope(
                 time_values=time_values,
@@ -983,7 +980,6 @@ class MIRAModel(MIRAPreTrainedModel):
                 alpha=alpha,
             )
 
-        # --- Input Embeddings ---
         if inputs_embeds is None:
             inputs_embeds = self.embed_layer(input_ids)
 
@@ -1127,6 +1123,7 @@ class TerminalODEBlock(nn.Module):
         delta_t = t_Nplus1 - t_N
 
         # Handle cases where delta_t might be zero or negative per batch item
+        # We consider delat_t smaller than 1 as regular time interval as pos_ids: 0,1,2...
         if torch.any(delta_t <= 1):
              warnings.warn("ODE integration interval delta_t <= 0 detected for some batch items. Returning initial state h_N for those items.")
              # Identify indices where delta_t > 0
@@ -1147,8 +1144,8 @@ class TerminalODEBlock(nn.Module):
              )
              h_extrapolated_valid = solution_valid[-1] # State at max_delta_t [N_valid, D]
 
-             if torch.any(delta_t <= 0):
-                 warnings.warn("delta_t <= 0 detected, returning input state for those items.")
+             if torch.any(delta_t <= 1):
+                 warnings.warn("delta_t negative detected, returning input state for those items.")
                  # For now, just solve for the whole batch using first item's delta_t for t_eval shape
                  # This requires user to ensure valid delta_t or handle results carefully.
                  t_eval = torch.tensor([0.0, delta_t[0].item()], device=h_N.device)
@@ -1306,16 +1303,13 @@ class MIRAForPrediction(MIRAPreTrainedModel, MIRAGenerationMixin):
             return_dict=return_dict,
         )
 
-        # --- Get final hidden state of the last token ---
         hidden_states_all = outputs.last_hidden_state if return_dict else outputs[0]
         hidden_states_last = hidden_states_all[:, -1, :] # Shape [B, D]
 
-        # Also get the absolute time of this last token
         time_values_last = None
         if time_values is not None:
             time_values_last = time_values[:, -1] # Shape [B]
         
-        # --- Apply Terminal ODE Extrapolation (if enabled) ---
         hidden_states_for_head = hidden_states_last  # default (no ODE)
 
         # Safe ODE block
@@ -1349,7 +1343,6 @@ class MIRAForPrediction(MIRAPreTrainedModel, MIRAGenerationMixin):
             # If inference and missing next_target_time_values: silently skip (no error)
             pass
 
-        # --- Prediction Heads ---
         # Unsqueeze the sequence dimension (now length 1) before passing to heads
         hidden_states = hidden_states_for_head.unsqueeze(1) # Shape [B, 1, D]
 
@@ -1368,7 +1361,6 @@ class MIRAForPrediction(MIRAPreTrainedModel, MIRAGenerationMixin):
                     predictions = one_predictions
             loss = ar_loss / len(self.config.horizon_lengths)
 
-            # --- Auxiliary MoE Load Balancing Loss (Computed over the full sequence if possible) ---
             if self.apply_aux_loss:
                 router_logits = outputs.router_logits if return_dict else outputs[-1]
 
