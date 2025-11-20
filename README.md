@@ -214,7 +214,7 @@ This makes MIRA particularly suitable for:
 
 
 <p align="center">
-  <img src="images/outofdistribution.png" width="65%">
+  <img src="images/outofdistribution.png" width="55%">
 </p>
 
 To evaluate its robustness, we test MIRA on **unseen downstream clinical datasets** that do not overlap with the 454B time points used during pre-training (covering ICU physiological waveforms and hospital EHR time-series). The figure reports the **average RMSE across a diverse collection of medical forecasting tasks**, comparing MIRA against recent foundation models.  **MIRA achieves the best overall OOD performance**, outperforming all baselines on out-of-distribution settings.  
@@ -229,10 +229,10 @@ To understand how MIRA allocates computation across different temporal resolutio
 <table>
 <tr>
 <td align="center"><b>CDC-IHA (Weekly)</b><br>
-<img src="images/CDC-IHA_moe.png" width="90%">
+<img src="images/CDC-IHA_moe.png" width="80%">
 </td>
 <td align="center"><b>MIT-BIH (High-Frequency)</b><br>
-<img src="images/MiT-BIH_moe.png" width="90%">
+<img src="images/MiT-BIH_moe.png" width="80%">
 </td>
 </tr>
 </table>
