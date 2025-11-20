@@ -212,17 +212,32 @@ This makes MIRA particularly suitable for:
 - cross-institution generalization  
 - rapid deployment on unseen clinical tasks 
 
-To evaluate its robustness, we test MIRA on **unseen downstream clinical datasets** that do not overlap with the 454B time points used during pre-training (covering ICU physiological waveforms and hospital EHR time-series). The figure below reports the **average RMSE across a diverse collection of medical forecasting tasks**, comparing MIRA against recent foundation models.
 
 <p align="center">
-  <img src="outofdistribution.png" width="70%">
+  <img src="images/outofdistribution.png" width="80%">
 </p>
 
-- **MIRA achieves the best overall OOD performance**, outperforming all baselines on out-of-distribution settings.  
-- MIRA maintains strong performance consistency across heterogeneous data sources, demonstrating robustness to:
-  - different sampling rates  
-  - irregular timestamps  
+To evaluate its robustness, we test MIRA on **unseen downstream clinical datasets** that do not overlap with the 454B time points used during pre-training (covering ICU physiological waveforms and hospital EHR time-series). The figure reports the **average RMSE across a diverse collection of medical forecasting tasks**, comparing MIRA against recent foundation models.  **MIRA achieves the best overall OOD performance**, outperforming all baselines on out-of-distribution settings.  
 
+### Frequency-Specialized Mixture-of-Experts (MoE)
+
+To understand how MIRA allocates computation across different temporal resolutions, we visualize the **expert gating patterns** on two datasets with **distinct time frequencies**:
+
+- **CDC-IHA** — weekly epidemiological signals (low-frequency)  
+- **MIT-BIH Arrhythmia** — ~250Hz ECG waveforms (high-frequency)
+
+<table>
+<tr>
+<td align="center"><b>CDC-IHA (Weekly)</b><br>
+<img src="images/CDC-IHA_moe.pdf" width="90%">
+</td>
+<td align="center"><b>MIT-BIH (High-Frequency)</b><br>
+<img src="images/MiT-BIH_moe.pdf" width="90%">
+</td>
+</tr>
+</table>
+
+The MoE module in MIRA exhibits **clear selective activation**, showing that different experts specialize in different temporal regimes.
  
 
 ## Citation
