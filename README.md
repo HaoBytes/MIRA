@@ -209,7 +209,6 @@ Generalization is essential for real-world medical AI systems.  Unlike domain-sp
 
 This makes MIRA particularly suitable for:
 - health systems with limited labeled data  
-- cross-institution generalization  
 - rapid deployment on unseen clinical tasks 
 
 
