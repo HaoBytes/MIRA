@@ -1,3 +1,9 @@
+<p align="center">
+  <b>⚠️ This repository is no longer maintained.</b><br>
+  Please visit the latest official implementation here:<br>
+  👉 <a href="https://github.com/microsoft/MIRA"><b>https://github.com/microsoft/MIRA</b></a>
+</p>
+
 <div align="center">
   <h2><b>(NeurIPS '25) MIRA: Medical Time Series Foundation Model for Real-World Health Data </b></h2>
 </div>
