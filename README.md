@@ -214,7 +214,7 @@ This makes MIRA particularly suitable for:
 
 
 <p align="center">
-  <img src="images/outofdistribution.png" width="80%">
+  <img src="images/outofdistribution.png" width="65%">
 </p>
 
 To evaluate its robustness, we test MIRA on **unseen downstream clinical datasets** that do not overlap with the 454B time points used during pre-training (covering ICU physiological waveforms and hospital EHR time-series). The figure reports the **average RMSE across a diverse collection of medical forecasting tasks**, comparing MIRA against recent foundation models.  **MIRA achieves the best overall OOD performance**, outperforming all baselines on out-of-distribution settings.  
@@ -237,7 +237,7 @@ To understand how MIRA allocates computation across different temporal resolutio
 </tr>
 </table>
 
-The MoE module in MIRA exhibits **clear selective activation**, showing that different experts specialize in different temporal regimes.
+The MoE module in MIRA exhibits **clear selective activation**, showing that different experts specialize in different temporal regimes. The gating heatmap shows that CDC-IHA predominantly activates a small, consistent subset of experts across layers.  This reflects **low-frequency specialization**, where long-horizon patterns dominate and only a few experts handle the smoother temporal dynamics. In contrast, MIT-BIH exhibits much more **distributed expert routing**, with activations spread across many experts and layers.   This corresponds to modeling fine-grained, high-resolution physiological waveforms.
  
 
 ## Citation
