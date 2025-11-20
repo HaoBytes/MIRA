@@ -229,10 +229,10 @@ To understand how MIRA allocates computation across different temporal resolutio
 <table>
 <tr>
 <td align="center"><b>CDC-IHA (Weekly)</b><br>
-<img src="images/CDC-IHA_moe.pdf" width="90%">
+<img src="images/CDC-IHA_moe.png" width="90%">
 </td>
 <td align="center"><b>MIT-BIH (High-Frequency)</b><br>
-<img src="images/MiT-BIH_moe.pdf" width="90%">
+<img src="images/MiT-BIH_moe.png" width="90%">
 </td>
 </tr>
 </table>
