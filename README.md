@@ -203,8 +203,27 @@ Access link: https://physionet.org/content/sleep-edfx/1.0.0/
 
 ## Performance
 
+### Out-of-Distribution Generalization
 
+Generalization is essential for real-world medical AI systems.  Unlike domain-specific time-series models that require retraining, MIRA provides **zero-shot forecasting capabilities** on new hospitals, new patient cohorts, and new physiological variables—without any fine-tuning. 
 
+This makes MIRA particularly suitable for:
+- health systems with limited labeled data  
+- cross-institution generalization  
+- rapid deployment on unseen clinical tasks 
+
+To evaluate its robustness, we test MIRA on **unseen downstream clinical datasets** that do not overlap with the 454B time points used during pre-training (covering ICU physiological waveforms and hospital EHR time-series). The figure below reports the **average RMSE across a diverse collection of medical forecasting tasks**, comparing MIRA against recent foundation models.
+
+<p align="center">
+  <img src="outofdistribution.png" width="70%">
+</p>
+
+- **MIRA achieves the best overall OOD performance**, outperforming all baselines on out-of-distribution settings.  
+- MIRA maintains strong performance consistency across heterogeneous data sources, demonstrating robustness to:
+  - different sampling rates  
+  - irregular timestamps  
+
+ 
 
 ## Citation
 
