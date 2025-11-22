@@ -80,10 +80,6 @@ def mira_predict_autoreg_norm(model, values, raw_times, C, P, mean, std):
     preds = preds_norm * std + mean
     return preds.squeeze(0)
 
-
-# -----------------------------
-# 👉 补上你缺失的函数（必须有）
-# -----------------------------
 def evaluate_one_window(model, seq, times, C, P, mean, std):
     """Evaluate only one window (batch size = 1)."""
     T = len(seq)
