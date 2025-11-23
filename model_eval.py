@@ -82,13 +82,18 @@ def mira_predict_autoreg_norm(model, values, raw_times, C, P, mean, std):
 
 def evaluate_one_window(model, seq, times, C, P, mean, std):
     """Evaluate only one window (batch size = 1)."""
+    device = next(model.parameters()).device
+
     T = len(seq)
     if T < C + P:
         return None, None
 
-    # Use only first window: seq[0:C+P]
-    hist = seq[:C + P]
-    t_hist = times[:C + P]
+    # Move sequence and time to device
+    hist = seq[:C + P].to(device)
+    t_hist = times[:C + P].to(device)
+
+    mean = mean.to(device)
+    std = std.to(device)
 
     pred = mira_predict_autoreg_norm(
         model,
@@ -100,7 +105,7 @@ def evaluate_one_window(model, seq, times, C, P, mean, std):
         std,
     )
 
-    gt = hist[C:C + P]
+    gt = hist[C:C + P].to(device)
 
     rmse = torch.sqrt(F.mse_loss(pred, gt)).item()
     mae = F.l1_loss(pred, gt).item()
@@ -116,8 +121,9 @@ def rolling_eval_dataset(model, seq_list, time_list, settings):
 
         for seq, tms in zip(seq_list, time_list):
 
-            mean = seq.mean()
-            std = seq.std() + 1e-6
+            device = next(model.parameters()).device
+            mean = seq.mean().to(device)
+            std = (seq.std() + 1e-6).to(device)
 
             rmse, mae = evaluate_one_window(model, seq, tms, C, P, mean, std)
             if rmse is not None:
